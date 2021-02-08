@@ -43,9 +43,6 @@ INEEG = pop_interp(INEEG,INEEG.Orignalchanlocs,'spherical');
 
 % Final Filter 
 
-lowpass_freq = []; % Empty array -> no lowpass filter
-highpass_freq = 45;
-
 [INEEG] = pop_eegfiltnew(INEEG, lp_freq, hp_freq);
 
 % Re-reference to average channel 
