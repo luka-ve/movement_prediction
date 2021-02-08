@@ -160,3 +160,7 @@ codegen/
 
 # Octave session info
 octave-workspace
+
+
+# Project specific
+*.h5
