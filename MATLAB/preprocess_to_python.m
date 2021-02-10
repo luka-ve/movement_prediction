@@ -26,11 +26,14 @@ for ppt_file = PPT_FILES
     EEG_data_split = split_EEG(EEG_clean, opts);
     EEG_data_split = perform_STFT(EEG_data_split, EEG.srate, opts);
     
-    ppt_info = split(ppt_file, "/");justin
+    ppt_info = split(ppt_file, "/");
+    
     filepath = export_as_h5(EEG_data_split, ppt_info(1), ppt_info(2), opts);
     
     fprintf("H5 file exported to %s\n", filepath);
 end
+
+fprintf("Finished exporting to %s", opts.h5_save_path); 
 
 
 % Helper Functions
