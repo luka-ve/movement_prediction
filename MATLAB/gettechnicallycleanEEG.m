@@ -1,4 +1,4 @@
-function OUTEEG = gettechnicallycleanEEG(INEEG, lp_freq, hp_freq)
+function OUTEEG = gettechnicallycleanEEG(INEEG, hp_freq, lp_freq)
 % OUTEEG = gettechnincallycleanEEG(INEEG)
 % assume 1.ICA performed, 2. Bad channels have been marked, 3. channel
 % locations already placed 4. Electrode locations present 
@@ -41,9 +41,8 @@ INEEG = pop_subcomp(INEEG,Rej_Comp,0);
 % interpolate missing channels 
 INEEG = pop_interp(INEEG,INEEG.Orignalchanlocs,'spherical');
 
-% Final Filter 
-
-[INEEG] = pop_eegfiltnew(INEEG, lp_freq, hp_freq);
+% Final Filter
+[INEEG] = pop_eegfiltnew(INEEG, hp_freq, lp_freq);
 
 % Re-reference to average channel 
 

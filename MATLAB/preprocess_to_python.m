@@ -7,8 +7,8 @@ PPT_FILES = ["DS99/08_05_25_04_19.set" "DS99/10_19_25_04_19.set"];
 
 opts = struct();
 
-opts.lowpass_freq = [];
-opts.highpass_freq = 45;
+opts.lowpass_freq = 45;
+opts.highpass_freq = [];
 opts.max_dist_between_sections = 30000;
 opts.activity_windows_padding = 30000;
 
@@ -33,7 +33,7 @@ end
 % Helper Functions
 
 function EEG_cleaned = clean_EEG(EEG, opts)
-    EEG_cleaned = gettechnicallycleanEEG(EEG, opts.lowpass_freq, opts.highpass_freq);
+    EEG_cleaned = gettechnicallycleanEEG(EEG, opts.highpass_freq, opts.lowpass_freq);
 end
 
 
