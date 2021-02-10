@@ -26,7 +26,10 @@ for ppt_file = PPT_FILES
     EEG_data_split = split_EEG(EEG_clean, opts);
     EEG_data_split = perform_STFT(EEG_data_split, EEG.srate, opts);
     
-    export_as_h5(EEG_data_split, ppt_file, opts);
+    ppt_info = split(ppt_file, "/");justin
+    filepath = export_as_h5(EEG_data_split, ppt_info(1), ppt_info(2), opts);
+    
+    fprintf("H5 file exported to %s\n", filepath);
 end
 
 
@@ -111,7 +114,8 @@ end
 
 
 function EEG_data_split = perform_STFT(EEG_data_split, sampling_rate, opts)
-    % Performs STFT 
+    % Performs STFT
+    % Returns the log of the squared absolute value of the STFT output.
     
     for idx = 1:size(EEG_data_split, 2)
         window = opts.stft_window;
@@ -129,14 +133,14 @@ function EEG_data_split = perform_STFT(EEG_data_split, sampling_rate, opts)
         freqs = freqs(ceil(size(freqs, 1)/2 + 1):end);
 
         % Save stft info into struct
-        EEG_data_split(idx).stft = EEG_stft;
+        EEG_data_split(idx).stft = log(abs(EEG_stft).^2);
         EEG_data_split(idx).freqs = freqs;
         EEG_data_split(idx).times = times;
     end
 end
 
 
-function [] = export_as_h5(data, participant_name, opts)
+function [filepath] = export_as_h5(data, participant_id, session_id, opts)
     % Saves the dataset to the location specified in opts.h5_save_path as
     % an .h5 file.
     % The STFT output is split into real and imaginary parts, since complex
@@ -145,19 +149,18 @@ function [] = export_as_h5(data, participant_name, opts)
     % TODO: Put all data of one participant into same file. Make new level
     % for each recording
     
-    filename = strcat(strrep(participant_name, "/", "-"), ".h5");
-    filename = strrep(filename, ".set", "");
+    filename = strcat(participant_id, ".h5");
+    session_id_clean = strrep(session_id, ".set", "");
     
     filename_full_path = fullfile(opts.h5_save_path, filename);
 
     for window = 1:size(data, 2)
-        h5create(filename_full_path, sprintf("/window_%s/stft/real", window), size(real(data(window).stft)));
-        h5create(filename_full_path, sprintf("/window_%s/stft/imag", window), size(imag(data(window).stft)));
+        h5create(filename_full_path, sprintf("/%s/window_%d/stft", session_id_clean, window), size(data(window).stft));
+        h5write(filename_full_path, sprintf("/%s/window_%d/stft", session_id_clean, window), data(window).stft);
 
-        h5write(filename_full_path, sprintf("/window_%s/stft/real", window), real(data(window).stft));
-        h5write(filename_full_path, sprintf("/window_%s/stft/imag", window), imag(data(window).stft));
-
-        h5create(filename_full_path, sprintf("/window_%s/taps", window), size(data(window).tap_timestamps));
-        h5write(filename_full_path, sprintf("/window_%s/taps", window), data(window).tap_timestamps);
+        h5create(filename_full_path, sprintf("/%s/window_%d/taps", session_id_clean, window), size(data(window).tap_timestamps));
+        h5write(filename_full_path, sprintf("/%s/window_%d/taps", session_id_clean, window), data(window).tap_timestamps);
     end
+    
+    filepath = filename_full_path;
 end
