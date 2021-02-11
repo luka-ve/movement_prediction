@@ -3,7 +3,8 @@
 % EEGLAB
 
 DATA_ROOT_PATH = "D:/Coding/Thesis/Data/EEG";
-PPT_FILES = ["DS99/08_05_25_04_19.set" "DS99/10_19_25_04_19.set"];
+PPT_FILES = ["DS99/08_05_25_04_19.set"];
+%PPT_FILES = ["DS99/08_05_25_04_19.set", "DS99/10_19_25_04_19.set"];
 
 opts = struct();
 
@@ -35,7 +36,7 @@ for ppt_file = PPT_FILES
     fprintf("H5 file exported to %s\n", filepath);
 end
 
-fprintf("Finished exporting to %s", opts.h5_save_path); 
+fprintf("Finished exporting to %s\n", opts.h5_save_path); 
 
 
 % Helper Functions
