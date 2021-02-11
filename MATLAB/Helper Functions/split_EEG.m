@@ -42,11 +42,6 @@ function [activity_windows, activity_windows_taps] = find_activity_windows(EEG, 
     
     
     % TODO: Check srate to see if sampling rate was 500 Hz
-    % TODO: Loop over all sessions of tap data
-    
-    
-    % movmean
-    % risetime falltime
     
     taps = zeros(size(EEG.data, 2), 1);
     taps(taps_all(:, 2)) = 1;

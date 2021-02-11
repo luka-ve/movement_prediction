@@ -14,7 +14,7 @@ opts.max_dist_between_sections = 30000;
 opts.activity_windows_padding = 30000;
 
 opts.stft_window = hann(64, "periodic");
-opts.stft_overlap = floor(length(opts.stft_window) / 2); % 50% stride
+opts.stft_overlap = 32; % 50% stride
 opts.stft_FFTLength = 64;
 
 opts.h5_save_path = fullfile("D:/Coding/Thesis/Data/STFT Output");
@@ -22,18 +22,17 @@ opts.h5_save_path = fullfile("D:/Coding/Thesis/Data/STFT Output");
 
 for ppt_file = PPT_FILES
     EEG = pop_loadset('filename', convertStringsToChars(fullfile(DATA_ROOT_PATH, ppt_file)));
+    EEG_clean = gettechnicallycleanEEG(EEG, opts.highpass_freq, opts.lowpass_freq);
     
     taps_all = concatenate_taps(EEG);
-    
-    EEG_clean = gettechnicallycleanEEG(EEG, opts.highpass_freq, opts.lowpass_freq);
     EEG_data_split = split_EEG(EEG_clean, taps_all, opts);
-    EEG_data_split = perform_STFT(EEG_data_split, EEG.srate, opts);
+    EEG_data_split_stft = perform_STFT(EEG_data_split, EEG.srate, opts);
     
     ppt_info = split(ppt_file, "/");
     
-    filepath = export_as_h5(EEG_data_split, ppt_info(1), ppt_info(2), opts);
+    export_as_h5(EEG_data_split_stft, ppt_info(1), ppt_info(2), opts);
     
-    fprintf("H5 file exported to %s\n", filepath);
+    fprintf("%s exported to %s\n", ppt_file, opts.h5_save_path);
 end
 
-fprintf("Finished exporting to %s\n", opts.h5_save_path); 
+fprintf("Finished.");
