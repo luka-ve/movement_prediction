@@ -12,9 +12,9 @@ function EEG_data_split = split_EEG(EEG, taps_all, opts)
 
     EEG_data_split = struct();
 
-    for window = 1:size(activity_windows, 1)
+    for window = 1:size(activity_windows, 2)
         EEG_data_split(window).data = EEG.data(:, activity_windows{window});
-        EEG_data_split(window).timestamps = activity_windows{window};
+        EEG_data_split(window).timestamps = [activity_windows{window}(1), activity_windows{window}(end)];
 
 
         % Add tap timestamps, adjusted to the new timings/indices of the
@@ -60,8 +60,8 @@ function [activity_windows, activity_windows_taps] = find_activity_windows(EEG, 
     activity_windows_taps = {};
     
     for i = 1:size(risetimes', 2)
-        activity_windows{i} = [ceil(risetimes * EEG.srate), ceil(falltimes * EEG.srate)];
-        activity_windows_taps{i} = find(taps_all(:, 2) > activity_windows{i}(1) & taps_all(:, 2) < activity_windows{i}(2));
+        activity_windows{i} = ceil(risetimes(i) * EEG.srate):ceil(falltimes(i) * EEG.srate);
+        activity_windows_taps{i} = find(taps_all(:, 2) > activity_windows{i}(1) & taps_all(:, 2) < activity_windows{i}(end));
     end
    
     
