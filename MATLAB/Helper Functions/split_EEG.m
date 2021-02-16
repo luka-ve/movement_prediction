@@ -20,7 +20,7 @@ function EEG_data_split = split_EEG(EEG, taps_all, opts)
         % Add tap timestamps, adjusted to the new timings/indices of the
         % activity windows
         EEG_data_split(window).tap_timestamps = int32(...
-            taps_all(activity_windows_taps{window}) - activity_windows{window}(1));
+            taps_all(activity_windows_taps{window}, 2) - activity_windows{window}(1));
     end
 end
 

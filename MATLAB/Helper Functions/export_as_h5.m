@@ -16,7 +16,7 @@ function [filepath] = export_as_h5(data, participant_id, session_id, opts)
         h5create(filename_full_path, sprintf("/%s/window_%d/stft", session_id_clean, window), size(data(window).stft));
         h5write(filename_full_path, sprintf("/%s/window_%d/stft", session_id_clean, window), data(window).stft);
 
-        h5create(filename_full_path, sprintf("/%s/window_%d/taps", session_id_clean, window), size(data(window).tap_timestamps));
+        h5create(filename_full_path, sprintf("/%s/window_%d/taps", session_id_clean, window), size(data(window).tap_timestamps), 'DataType', 'int32');
         h5write(filename_full_path, sprintf("/%s/window_%d/taps", session_id_clean, window), data(window).tap_timestamps);
     end
     
