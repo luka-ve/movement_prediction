@@ -28,15 +28,28 @@ for ppt_file = PPT_FILES
     EEG = pop_loadset('filename', convertStringsToChars(fullfile(DATA_ROOT_PATH, ppt_file)));
     EEG_clean = gettechnicallycleanEEG(EEG, opts.highpass_freq, opts.lowpass_freq);
     
+    opts.srate = EEG.srate;
+    
     taps_all = concatenate_taps(EEG);
+    
+    clear EEG;
+    
     EEG_data_split = split_EEG(EEG_clean, taps_all, opts);
-    EEG_data_split_stft = perform_STFT(EEG_data_split, EEG.srate, opts);
+    
+    clear EEG_clean;
+    
+    EEG_data_split_stft = perform_STFT(EEG_data_split, opts.srate, opts);
+    
+    clear EEG_data_split
     
     ppt_info = split(ppt_file, "/");
+    
     
     export_as_h5(EEG_data_split_stft, ppt_info(1), ppt_info(2), opts);
     
     fprintf("""%s"" exported to ""%s"" in %.2f seconds.\n", ppt_file, opts.h5_save_path, toc(ppt_time_start));
+    
+    clear EEG_data_split_stft
 end
 
 fprintf("Finished in %.2f seconds.\n", toc(script_start_time));
