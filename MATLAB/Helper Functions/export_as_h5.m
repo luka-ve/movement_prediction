@@ -13,12 +13,17 @@ function [filepath] = export_as_h5(data, participant_id, session_id, opts)
     filename_full_path = fullfile(opts.h5_save_path, filename);
 
     for window = 1:size(data, 2)
-        h5create(filename_full_path, sprintf("/%s/window_%d/stft", session_id_clean, window), size(data(window).stft));
+        h5create(filename_full_path, sprintf("/%s/window_%d/stft", session_id_clean, window), size(data(window).stft), 'Datatype', 'single');
         h5write(filename_full_path, sprintf("/%s/window_%d/stft", session_id_clean, window), data(window).stft);
 
         h5create(filename_full_path, sprintf("/%s/window_%d/taps", session_id_clean, window), size(data(window).tap_timestamps), 'DataType', 'int32');
         h5write(filename_full_path, sprintf("/%s/window_%d/taps", session_id_clean, window), data(window).tap_timestamps);
     end
+    
+    % Write meta data
+    h5writeatt(filename_full_path, "/", "original_sampling_rate", opts.srate)
+    h5writeatt(filename_full_path, "/", "stft_hopsize", opts.hopsize);
+    h5writeatt(filename_full_path, "/", "stft_FFTLength", opts.stft_FFTLength);
     
     filepath = filename_full_path;
 end
