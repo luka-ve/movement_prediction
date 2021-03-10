@@ -15,9 +15,11 @@ opts.highpass_freq = [];
 opts.max_dist_between_sections = 30000;
 opts.activity_windows_padding = 30000;
 
-opts.stft_window = hann(64, "periodic");
-opts.stft_overlap = 32; % 50% stride
-opts.stft_FFTLength = 64;
+opts.stft_FFTLength = 256;
+opts.stft_window = hann(opts.stft_FFTLength, "periodic");
+opts.hopsize = 128;
+opts.stft_overlap = opts.stft_FFTLength - opts.hopsize;
+
 
 opts.h5_save_path = fullfile("D:/Coding/Thesis/Data/STFT Output");
 
