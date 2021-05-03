@@ -5,7 +5,7 @@
 script_start_time = tic();
 
 DATA_ROOT_PATH = "D:/Coding/Thesis/Data/EEG";
-%PPT_FILES = ["DS99/08_05_25_04_19.set"];
+PPT_FILES = ["DS95/12_02_11_04_19.set"];
 PPT_FILES = ["DS99/08_05_25_04_19.set", "DS99/10_19_25_04_19.set", "DS95/12_02_11_04_19.set"];
 
 opts = struct();
