@@ -14,7 +14,24 @@ SAVE_PATH = "~/Thesis/Data/EEG_ICA/";
 % Instantiate log file
 log_file = instantiate_log_file();
 
-for ppt_file = PPT_FILES
+
+% Recursively find status.mat files
+status_files = dir(fullfile(DATA_ROOT_PATH, "**/status.mat"));
+status_files = status_files(~[status_files.isdir]);
+
+files_to_analyze = [];
+for status_file = status_files
+   status = load(status_file);
+   
+   for substatus = status.eeg_name
+       if substatus.EEG == 1 && substatus.Sensor == 1 && substatus.Phone == 1
+           files_to_analyze = [files_to_analyze, fullpath(substatus.path, substatus.processed_name)];
+       end
+   end
+end
+
+
+for ppt_file = files_to_analyze
     % Load File
     EEG = pop_loadset('filename', convertStringsToChars(fullfile(DATA_ROOT_PATH, ppt_file)));
     
@@ -24,8 +41,12 @@ for ppt_file = PPT_FILES
     % This is done first, as the decision tree also returns a decision
     % about whether participant should be ignored. If ignored, the loop
     % iteration is skipped.
-    bandpass_range = [1, 70];    
-    bendsensor_data = getcleanedbsdata(EEG.Aligned.BS.Data(:,1), EEG.srate, bandpass_range);
+    bandpass_range = [1, 10];    
+    bendsensor_data = getcleanedbsdata(EEG.Aligned.BS.Data(:, 1), EEG.srate, bandpass_range);
+    
+    if size(EEG.Aligned.BS.Data, 2) == 2
+        forcesensor_data = EEG.Aligned.BS.Data(:, 2);
+    end
     
     [EEG, simple] = decision_tree_alignment(EEG, bendsensor_data, 0);
     
@@ -61,10 +82,12 @@ for ppt_file = PPT_FILES
     EEG.event = [EEG.event, tap_event];
     
     %% Clean EEG
-    EEG = preprocess_data(EEG);
+    EEG = gettechnicallycleanEEG(EEG);
     
-    %% Get motor components through ICA
-    [weights, spheres] = runica(EEG.data, 'ncomps', 64, 'maxsteps', 2);
+    %% Run ICA
+    [weights, spheres] = runica(EEG.data, 'ncomps', 64, 'maxsteps', 512);
+    
+    % Save weights to new file. Append to EEG?
     
     
     % Write to log
