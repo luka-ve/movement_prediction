@@ -39,7 +39,7 @@ Rej_Comp = unique([rej]);
 INEEG = pop_subcomp(INEEG,Rej_Comp,0);
 
 % interpolate missing channels 
-INEEG = pop_interp(INEEG,INEEG.Orignalchanlocs,'spherical');
+%INEEG = pop_interp(INEEG,INEEG.Orignalchanlocs,'spherical');
 
 % Final Filter
 [INEEG] = pop_eegfiltnew(INEEG, hp_freq, lp_freq);
