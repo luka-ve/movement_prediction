@@ -198,8 +198,6 @@ beta_file_locs = dir([char(SAVE_PATH), '**/Betas.mat']);
 
 beta_file_locs = [{beta_file_locs(:).folder}; {beta_file_locs(:).name}]';
 
-%beta_file_locs = arrayfun(@(row)fullfile(beta_file_locs{row, :}), (1:size(beta_file_locs, 1))', 'UniformOutput', false);
-
 expected_chanlocs = load('~/Thesis/movement_prediction/MATLAB/expected_chanlocs.mat');
 
 
@@ -214,17 +212,17 @@ LIMO.data.neighbouring_matrix = expected_chanlocs.channeighbstructmat;
 LIMO.data.data = beta_file_locs{:, 2};
 LIMO.data.data_dir = beta_file_locs{:, 1};
 LIMO.data.sampling_rate = 1000;
-LIMO.data.trim1 = 0.1;
-LIMO.data.start = 0;
-LIMO.data.trim2 = 0.9;
-LIMO.data.end = sum(abs(epoch_size)) * 1000;
+%LIMO.data.trim1 = 0.1;
+%LIMO.data.start = 0;
+%LIMO.data.trim2 = 0.9;
+%LIMO.data.end = sum(abs(epoch_size)) * 1000;
 
-LIMO.design.bootstrap = 17;
+LIMO.design.bootstrap = 1000;
 LIMO.design.tfce = 0;
 LIMO.design.name = 'one sample t-test all electrodes';
 LIMO.design.electrode = [];
 LIMO.design.X = [];
-LIMO.design.method = 'Mean';
+LIMO.design.method = 'Trimmed Mean';
 
 save('LIMO.mat', 'LIMO');
 
@@ -242,6 +240,7 @@ for ppt = 1:size(LIMOs, 2)
 end
 
 size(betas)
+whos betas
 
 
 
@@ -283,88 +282,82 @@ end
 
 
 %maxclustersum = limo_getclustersum(f,p,channeighbstructmat,minnbchan,alphav)
+load('H0/boot_table');
 alpha = 0.05;
 min_n_channels = 2;
 n_boot = size(boot_table{1}, 2);
 
-boot_max_cluster_sum = zeros(n_boot, 1);
-for boot = 1:n_boot
-    boot_max_cluster_sum(boot) = limo_getclustersum( ...
-        squeeze(H0_one_sample(:, :, 1, boot) .^ 2), ...
-        squeeze(H0_one_sample(:, :, 2, boot)), ...
+
+
+% All the above can be replaced by the following
+mask = zeros(size(betas, 1), size(betas, 2), size(LIMO_paths, 2));
+cluster_p = zeros(size(betas, 1), size(betas, 2), size(LIMO_paths, 2));
+
+one_sample = zeros(size(betas, 1), size(betas, 2), 5, size(LIMO_paths, 2));
+
+for current_beta = 1:size(LIMO_paths, 2)
+    one_sample_tmp = load(fullfile(LIMO_paths{current_beta}, sprintf('one_sample_ttest_parameter_%d.mat', current_beta)));
+    one_sample(:, :, :, current_beta) = one_sample_tmp.one_sample;    
+    
+    load(fullfile(LIMO_paths{current_beta}, 'H0', sprintf('H0_one_sample_ttest_parameter_%d.mat', current_beta)));
+    
+    [mask(:, :, current_beta), cluster_p(:, :, current_beta)] = limo_cluster_correction( ...
+        squeeze(one_sample(:, :, 4, current_beta) .^ 2), ...
+        squeeze(one_sample(:, :, 5, current_beta)), ...
+        squeeze(H0_one_sample(:, :, 1, :) .^ 2), ...
+        squeeze(H0_one_sample(:, :, 2, :)), ...
         expected_chanlocs.channeighbstructmat, ...
-        min_n_channels, ...
+        2, ...
         alpha);
 end
 
-% Sort bootstrapped distribution is then sorted to obtain a threshold for a
-% given alpha
-% Comment: Unnecessary, as limo_cluster_test already does this for us.
-U = round((1 - alpha) * n_boot);
-boot_max_cluster_sum_sorted = sort(boot_max_cluster_sum, 1);
-max_cluster_sum_threshold = boot_max_cluster_sum_sorted(U);
+save('clustering_output.mat', 'mask', 'cluster_p');
 
-[mask, pval, maxval, maxclustersum_th] = limo_cluster_test( ...
-    squeeze(one_sample(:, :, 4) .^ 2), ...
-    squeeze(one_sample(:, :, 5)), ...
-    boot_max_cluster_sum, ...
-    expected_chanlocs.channeighbstructmat, ...
-    min_n_channels, ...
-    alpha);
+%% Plot clusters
 
 
-% All the above can be replaced by the following. Let's check that out
-% tomorrow.
-[mask,cluster_p] = limo_cluster_correction( ...
-    squeeze(one_sample(:, :, 4) .^ 2), ...
-    squeeze(one_sample(:, :, 5)), ...
-    squeeze(H0_one_sample(:, :, 1, :) .^ 2), ...
-    squeeze(H0_one_sample(:, :, 2, :)), ...
-    expected_chanlocs.channeighbstructmat, ...
-    1, ...
-    alpha);
-
-% Correction for multiple testing using cluster mass. Since data are 
-% correlated in space/time/frequency is makes sense to rely on clusters 
-% to estimate if an an effect is probable under H0.
-%
-% INPUTS: M = matrix of observed F values (channel*[]*[])
-%         P = matrix of observed p values
-%         (note for a single electrode the format is 1*[]*[])
-%         bootM = matrix of F values for data under H0 (channel*[]*[]*MC)
-%         bootP = matrix of F values for data under H0
-%         (note for a single electrode the format is 1*[]*[]*MC)
-%         neighbouring_matrix is the bianry matrix that define how to cluster the 1st dim of M
-%         MCC = 2 (spatial-temporal clustering) or 1 (temporal clustering)
-%         p = threshold to apply (note this applied to create clusters and to  threshold the cluster map)
-
-
-
-
-
-
-
-
-
-
-
-
-limo_getclustersum
-limo_random_select
-limo_getclustersum
-limo_cluster_test
-limo_tfce
-limo_cluster_correction
-
-boot_maxclustersum
-
-
-ttest = struct();
-
-[ttest.t,ttest.tmdata,ttest.trimci,ttest.se,ttest.p,ttest.tcrit,ttest.df] = limo_trimci(Y);
 
 figure;
-plot(ttest.se(10, :));
+sgtitle('Significant clusters for each coefficient.')
+tiledlayout(1, 3, 'TileSpacing', 'compact')
+
+
+for current_beta = 1:size(mask, 3)
+    clusters = unique(mask(:, :, current_beta))';
+    clusters(clusters == 0) = []; % Remove 0, 0 is no significant cluster
+    
+    ax = nexttile;
+    title(string(current_beta));
+    
+    hold on;
+    xlim([1, size(cluster_indices, 2)]);
+    ylim([1, size(cluster_indices, 1)]);
+    
+    this_beta_cluster_ps = {};
+    
+    for current_cluster = clusters
+        cluster_indices = squeeze(mask(:, :, current_beta)) == current_cluster;
+        [cluster_pos_x, cluster_pos_y] = find(cluster_indices');
+        
+        hold on;
+        scatter(cluster_pos_x, cluster_pos_y);
+        
+        %title(string(current_cluster));
+        
+        %significant_betas = mean(squeeze(betas(:, :, current_beta, :)), 3);
+        %significant_betas(cluster_indices) = significant_betas(cluster_indices)
+        
+        %length(significant_betas(~cluster_indices))
+        
+        this_cluster_p = squeeze(cluster_p(:, :, current_beta));
+        this_beta_cluster_ps{current_cluster} = string(max(this_cluster_p(cluster_indices)));
+    end
+    
+    legend(this_beta_cluster_ps);
+end
+
+
+%%
 
 
 
@@ -374,6 +367,31 @@ plot(ttest.se(10, :));
 
 
 
-
+% boot_max_cluster_sum = zeros(n_boot, 1);
+% for boot = 1:n_boot
+%     boot_max_cluster_sum(boot) = limo_getclustersum( ...
+%         squeeze(H0_one_sample(:, :, 1, boot) .^ 2), ...
+%         squeeze(H0_one_sample(:, :, 2, boot)), ...
+%         expected_chanlocs.channeighbstructmat, ...
+%         min_n_channels, ...
+%         alpha);
+% end
+% 
+% % Sort bootstrapped distribution is then sorted to obtain a threshold for a
+% % given alpha
+% % Comment: Unnecessary, as limo_cluster_test already does this for us.
+% U = round((1 - alpha) * n_boot);
+% boot_max_cluster_sum_sorted = sort(boot_max_cluster_sum, 1);
+% max_cluster_sum_threshold = boot_max_cluster_sum_sorted(U);
+% 
+% 
+% 
+% [mask, pval, maxval, maxclustersum_th] = limo_cluster_test( ...
+%     squeeze(one_sample(:, :, 4) .^ 2), ...
+%     squeeze(one_sample(:, :, 5)), ...
+%     boot_max_cluster_sum, ...
+%     expected_chanlocs.channeighbstructmat, ...
+%     min_n_channels, ...
+%     alpha);
 
 
