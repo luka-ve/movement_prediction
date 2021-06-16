@@ -137,15 +137,7 @@ for ppt = 1:length(files_to_analyze)
         continue;
     end
     
-    %% Select subsequences
-    % Padding size determines how many samples the regions are extended beyond the first and last event. 
-    % Take care that it is not larger that max_dist / 2. Otherwise, regions
-    % might overlap. This should not be a problem, since EEGLAB will
-    % automatically merge overlapping regions when doing pop_select.
     
-    max_dist_between_subsequences_in_samples = ms2idx(100000, EEG.srate);
-    padding_size = 20000;
-    EEG_tap_sequences = split_EEG(EEG.data, tap_idx, max_dist_between_subsequences_in_samples, 30000, EEG.srate);
     
     
     %% Handle FS data
@@ -156,8 +148,6 @@ for ppt = 1:length(files_to_analyze)
 
     % Generate FS events
     FS_event_idx = get_FS_taps(FS_data, FS_sampling_rate);
-
-    EEG_FS_subsequences = split_EEG(FS_data', FS_event_idx, max_dist_between_subsequences_in_samples, 20000, 1000);
 
     % Add FS events
     FS_events = struct();
@@ -182,7 +172,16 @@ for ppt = 1:length(files_to_analyze)
         write_log_entry(log_msg, ppt_file);
     end
     
-  
+    %% Select subsequences
+    % Padding size determines how many samples the regions are extended beyond the first and last event. 
+    % Take care that it is not larger that max_dist / 2. Otherwise, regions
+    % might overlap. This should not be a problem, since EEGLAB will
+    % automatically merge overlapping regions when doing pop_select.
+    
+    max_dist_between_subsequences_in_samples = ms2idx(100000, EEG.srate);
+    padding_size = 15000;
+    EEG_tap_sequences = split_EEG(EEG.data, tap_idx, max_dist_between_subsequences_in_samples, padding_size, EEG.srate);
+    EEG_FS_subsequences = split_EEG(FS_data', FS_event_idx, max_dist_between_subsequences_in_samples, padding_size, 1000);
     
     
     %% Clean EEG
