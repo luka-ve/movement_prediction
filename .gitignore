@@ -164,3 +164,4 @@ octave-workspace
 
 # Project specific
 *.h5
+MATLAB/Log/*
