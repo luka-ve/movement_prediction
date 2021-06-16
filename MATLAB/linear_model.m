@@ -25,6 +25,9 @@ new_sampling_rate = 1000; % Hz
 %% Reproject selected components
 
 starting_dir = pwd(); % Need to save starting dir, as some LIMO functions will cd into other directories.
+% event_name = 'Tap' % Set to this for taps
+event_name = 'FS_event'; % Set to this for FS events
+
 
 delta_times_per_tap = {};
 SAVE_PATH = "/media/Storage/User_Specific_Data_Storage/luka/EEG_STUDY/";
@@ -60,7 +63,7 @@ for ppt_no = 1:size(component_selection, 1)
     
     
     % Extract tap distances
-    tap_event_indices = find(strcmp({EEG1.event.code}, 'Tap'));    
+    tap_event_indices = find(strcmp({EEG1.event.code}, event_name));    
     tap_events = EEG1.event(tap_event_indices);
     tap_latencies = [tap_events.latency];
     delta_times_per_tap{end + 1} = get_tap_deltas(tap_latencies, taps_to_observe, EEG1.srate);
@@ -87,7 +90,7 @@ for ppt_no = 1:size(component_selection, 1)
     
     
     % Generate epochs
-    EEG1 = pop_epoch(EEG1, {'Tap'}, epoch_size);
+    EEG1 = pop_epoch(EEG1, {event_name}, epoch_size);
     
     % Define continuous predictors
     continuous = zeros(size(EEG1.epoch, 2), size(taps_to_observe, 2));
@@ -96,7 +99,7 @@ for ppt_no = 1:size(component_selection, 1)
         
         % Handle edge case in which multiple events have the exact same
         % latency (E.g., when stimulus and tap overlay exactly)
-        correct_event = which_current_event(strcmp({EEG1.epoch(this_epoch).eventcode{which_current_event}}, "Tap"));
+        correct_event = which_current_event(strcmp({EEG1.epoch(this_epoch).eventcode{which_current_event}}, event_name));
         
         % Extract predictor info
         continuous(this_epoch, 1) = EEG1.epoch(this_epoch).eventtm2{correct_event};
@@ -121,7 +124,7 @@ for ppt_no = 1:size(component_selection, 1)
     cont_files{end + 1} = char(fullfile(SAVE_PATH, ppt_info.Participant, [ppt_info.Filename(1:end-4), '_continuous.mat']));
     
     
-    %% Do LIMO 1st level analysis using LIMO struct
+    % Do LIMO 1st level analysis using LIMO struct
     
     % Basic setup
     Cat = [];
@@ -164,6 +167,9 @@ for ppt_no = 1:size(component_selection, 1)
     % NaNs are introduced to the data by the get_tap_deltas function.
     Y(:, :, any(isnan(continuous), 2)) = []; 
     
+    if (numel(Y) == 0)
+        continue;
+    end
     
     
     LIMO.model = cell(size(Y, 1), 1);
@@ -179,7 +185,8 @@ for ppt_no = 1:size(component_selection, 1)
     
     LIMO_savepath = fullfile(SAVE_PATH, ppt_info.Participant, 'LIMO.mat');
     save(LIMO_savepath, 'LIMO');
-    LIMO_files{end + 1} = LIMO_savepath;    
+    LIMO_files{end + 1} = LIMO_savepath;
+    movefile("Betas.mat", sprintf("Betas_%s.mat", ppt_info.Filename(1:(end-4))));
 end
 
 cd(starting_dir);
@@ -193,8 +200,53 @@ save('ALL_LIMO_INFO.mat', 'LIMOs');
 
 %% LIMO Step 2
 
+% Extract Betas from LIMOs struct
+n_betas = size(LIMOs(1).model(1).betas, 1);
+
+% Dimensions: electrodes * frames * betas * participants
+betas = zeros(64, sum(abs(epoch_size)) * 1000, n_betas, size(LIMOs, 2));
+
+for ppt = 1:size(LIMOs, 2)
+    current_ppt_limo = LIMOs(ppt);
+    
+    for electrode = 1:size(current_ppt_limo.model, 2)    
+        betas(electrode, :, :, ppt) = current_ppt_limo.model(electrode).betas';
+    end
+end
+
+size(betas)
+whos betas
+
+
+
+%% Plot betas for each electrode
+
+electrodes = 1:size(betas, 1);
+electrodes = [1, 2, 6, 10, 16];
+
+for beta = 1:size(betas, 3)
+    figure;
+    sgtitle(sprintf('Beta %d', beta));
+    p = numSubplots(length(electrodes));
+    
+    for electrode_index = 1:length(electrodes)
+        subplot(p(1), p(2), electrode_index);        
+        plot(epoch_size(1) * 1000:epoch_size(2) * 1000 - 1, squeeze(betas(electrodes(electrode_index), :, beta, :)));
+        hold on;
+        
+        % Add mean line
+        plot(epoch_size(1) * 1000:epoch_size(2) * 1000 - 1, mean(squeeze(betas(electrodes(electrode_index), :, beta, :)), 2), 'LineWidth', 5, 'color', [0, 0, 0]);
+        
+        
+        title(string(electrodes(electrode_index)));
+        xline(0);
+        yline(0);        
+    end
+end
+
+%% Setup for t-test
 % Find Betas.mat files in ppt folder
-beta_file_locs = dir([char(SAVE_PATH), '**/Betas.mat']);
+beta_file_locs = dir([char(SAVE_PATH), '**/Betas*.mat']);
 
 beta_file_locs = [{beta_file_locs(:).folder}; {beta_file_locs(:).name}]';
 
@@ -226,52 +278,8 @@ LIMO.design.method = 'Trimmed Mean';
 
 save('LIMO.mat', 'LIMO');
 
-n_betas = size(LIMOs(1).model(1).betas, 1);
 
-% Dimensions: electrodes * frames * betas * participants
-betas = zeros(64, sum(abs(epoch_size)) * 1000, n_betas, size(LIMOs, 2));
-
-for ppt = 1:size(LIMOs, 2)
-    current_ppt_limo = LIMOs(ppt);
-    
-    for electrode = 1:size(current_ppt_limo.model, 2)    
-        betas(electrode, :, :, ppt) = current_ppt_limo.model(electrode).betas';
-    end
-end
-
-size(betas)
-whos betas
-
-
-
-
-
-% Plot betas for each electrode
-
-electrodes = 1:size(betas, 1);
-
-for beta = 1:size(betas, 3)
-    figure;
-    sgtitle(sprintf('Beta %d', beta));
-    p = numSubplots(length(electrodes));
-    
-    for electrode_index = 1:length(electrodes)
-        subplot(p(1), p(2), electrode_index);        
-        plot(epoch_size(1) * 1000:epoch_size(2) * 1000 - 1, squeeze(betas(electrodes(electrode_index), :, beta, :)));
-        hold on;
-        
-        % Add mean line
-        plot(epoch_size(1) * 1000:epoch_size(2) * 1000 - 1, mean(squeeze(betas(electrodes(electrode_index), :, beta, :)), 2), 'LineWidth', 4);
-        
-        
-        title(string(electrodes(electrode_index)));
-        xline(0);
-        yline(0);        
-    end
-end
-
-
-% T-test for each beta
+%% T-test for each beta
 LIMO_paths(size(betas,3)) = string();
 
 for current_beta_index = 1:size(betas,3)
@@ -281,15 +289,14 @@ for current_beta_index = 1:size(betas,3)
 end
 
 
-%maxclustersum = limo_getclustersum(f,p,channeighbstructmat,minnbchan,alphav)
+
+%% Clustering
 load('H0/boot_table');
 alpha = 0.05;
 min_n_channels = 2;
 n_boot = size(boot_table{1}, 2);
 
-
-
-% All the above can be replaced by the following
+% Initialize empty matrices
 mask = zeros(size(betas, 1), size(betas, 2), size(LIMO_paths, 2));
 cluster_p = zeros(size(betas, 1), size(betas, 2), size(LIMO_paths, 2));
 
@@ -311,10 +318,9 @@ for current_beta = 1:size(LIMO_paths, 2)
         alpha);
 end
 
-save('clustering_output.mat', 'mask', 'cluster_p');
+save('clustering_output.mat', 'mask', 'cluster_p', 'one_sample');
 
 %% Plot clusters
-
 
 
 figure;
@@ -330,8 +336,8 @@ for current_beta = 1:size(mask, 3)
     title(string(current_beta));
     
     hold on;
-    xlim([1, size(cluster_indices, 2)]);
-    ylim([1, size(cluster_indices, 1)]);
+    xlim([1, size(mask, 2)]);
+    ylim([1, size(mask, 1)]);
     
     this_beta_cluster_ps = {};
     
@@ -365,33 +371,5 @@ end
 
 
 
-
-
-% boot_max_cluster_sum = zeros(n_boot, 1);
-% for boot = 1:n_boot
-%     boot_max_cluster_sum(boot) = limo_getclustersum( ...
-%         squeeze(H0_one_sample(:, :, 1, boot) .^ 2), ...
-%         squeeze(H0_one_sample(:, :, 2, boot)), ...
-%         expected_chanlocs.channeighbstructmat, ...
-%         min_n_channels, ...
-%         alpha);
-% end
-% 
-% % Sort bootstrapped distribution is then sorted to obtain a threshold for a
-% % given alpha
-% % Comment: Unnecessary, as limo_cluster_test already does this for us.
-% U = round((1 - alpha) * n_boot);
-% boot_max_cluster_sum_sorted = sort(boot_max_cluster_sum, 1);
-% max_cluster_sum_threshold = boot_max_cluster_sum_sorted(U);
-% 
-% 
-% 
-% [mask, pval, maxval, maxclustersum_th] = limo_cluster_test( ...
-%     squeeze(one_sample(:, :, 4) .^ 2), ...
-%     squeeze(one_sample(:, :, 5)), ...
-%     boot_max_cluster_sum, ...
-%     expected_chanlocs.channeighbstructmat, ...
-%     min_n_channels, ...
-%     alpha);
 
 
