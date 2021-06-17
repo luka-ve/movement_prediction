@@ -10,11 +10,7 @@ diary on;
 script_start_time = tic();
 
 DATA_ROOT_PATH = "/media/Storage/Common_Data_Storage/EEG/Feb_2018_2020_RUSHMA_ProcessedEEG";
-
-%PPT_FILES = ["DS95/12_02_11_04_19.set"];
-
 SAVE_PATH = "/media/Storage/User_Specific_Data_Storage/luka/EEG_ICA";
-
 
 
 log_msg = sprintf('Looking for files in %s', DATA_ROOT_PATH);
@@ -39,10 +35,14 @@ for status_file = status_files
    end
 end
 
+% Config parameters
+config.do_ica = logical(0);
+config.min_FS_tap_distance = 500; % In milliseconds
+
 
 %% ONLY FOR DEBUGGING %%
 %%%%%%%%%%%%%%%%%%%%%%%%
-%files_to_analyze = files_to_analyze1;
+files_to_analyze = files_to_analyze(1:3);
 
 
 %% Print out number of files
@@ -118,23 +118,24 @@ for ppt = 1:length(files_to_analyze)
     
     % Ensure that all fields in the original .events struct are also
     % present in new tap events
-    for tap = 1:length(tap_idx)
-        tap_event(tap).latency = tap_idx(tap);
-        tap_event(tap).duration = 1;
-        tap_event(tap).channel = 0;
-        tap_event(tap).bvtime = [];
-        tap_event(tap).bvmknum = 0;
-        tap_event(tap).type = 'Tap';
-        tap_event(tap).code = 'Tap';
-        tap_event(tap).urevent = 0;
-    end
-    
-    if ~isempty(tap_idx)
-        EEG.event = [EEG.event, tap_event];
-    else
+    if isempty(tap_idx)
         log_msg = 'Skipping participant: No tap indices found.';
         write_log_entry(log_msg, ppt_file);
         continue;
+    end
+    
+        
+    for tap = 1:length(tap_idx)
+        EEG.urevent(end + 1).latency = tap_idx(tap);
+        EEG.urevent(end).duration = 0.1;
+        EEG.urevent(end).type = 'Tap';
+        EEG.urevent(end).code = 'Tap';
+        
+        EEG.event(end + 1).latency = tap_idx(tap);
+        EEG.event(end).duration = 0.1;
+        EEG.event(end).type = 'Tap';
+        EEG.event(end).code = 'Tap';
+        EEG.event(end).urevent = length(EEG.urevent);        
     end
     
     
@@ -147,30 +148,33 @@ for ppt = 1:length(files_to_analyze)
     FS_data = EEG.Aligned.BS.Data(:, 2);
 
     % Generate FS events
-    FS_event_idx = get_FS_taps(FS_data, FS_sampling_rate);
+    FS_event_idx = get_FS_taps(FS_data, FS_sampling_rate, config.min_FS_tap_distance);
 
     % Add FS events
     FS_events = struct();
 
     % Ensure that all fields in the original .events struct are also
     % present in new tap events
-    for FS_event = 1:length(FS_event_idx)
-        FS_events(FS_event).latency = FS_event_idx(FS_event);
-        FS_events(FS_event).duration = 1;
-        FS_events(FS_event).channel = 0;
-        FS_events(FS_event).bvtime = [];
-        FS_events(FS_event).bvmknum = 0;
-        FS_events(FS_event).type = 'FS_event';
-        FS_events(FS_event).code = 'FS_event';
-        FS_events(FS_event).urevent = 0;
+    if isempty(FS_events)
+        log_msg = 'Skipping participant: No force sensor events detected.';
+        write_log_entry(log_msg, ppt_file);
+        continue;
     end
     
-    if ~isempty(FS_events)
-        EEG.event = [EEG.event, FS_events];
-    else
-        log_msg = 'Warning: FS data present, but no FS tap events could be extracted. Continuing participant nonetheless.';
-        write_log_entry(log_msg, ppt_file);
+    for FS_event = 1:length(FS_event_idx)
+        EEG.urevent(end + 1).latency = FS_event_idx(FS_event);
+        EEG.urevent(end).duration = 0.1;
+        EEG.urevent(end).type = 'FS_event';
+        EEG.urevent(end).code = 'FS_event';
+        
+        EEG.event(end + 1).latency = FS_event_idx(FS_event);
+        EEG.event(end).duration = 0.1;
+        EEG.event(end).type = 'FS_event';
+        EEG.event(end).code = 'FS_event';
+        EEG.event(end).urevent = length(EEG.urevent); 
     end
+    
+       
     
     %% Select subsequences
     % Padding size determines how many samples the regions are extended beyond the first and last event. 
@@ -208,11 +212,16 @@ for ppt = 1:length(files_to_analyze)
     % For this, the data can simply be concatenated, since ICA considers
     % time points independently. Therefore, the discontinuity of
     % concatenated EEG data is not an issue here.
-    try
-        EEG_taps_only = pop_runica(EEG_taps_only, 'icatype', 'runica');
-    catch ME
-        write_log_entry(ME.message, ppt_file);
-        continue;
+    if config.do_ica
+        write_log_entry('Skipping ICA: do_ica == false');
+        try
+            EEG_taps_only = pop_runica(EEG_taps_only, 'icatype', 'runica');
+        catch ME
+            write_log_entry(ME.message, ppt_file);
+            continue;
+        end
+    else
+        write_log_entry('Skipping ICA: do_ica == false', ppt_file);
     end
     
 
