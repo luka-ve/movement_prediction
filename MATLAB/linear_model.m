@@ -7,20 +7,7 @@ SAVE_PATH_ROOT = "/media/Storage/User_Specific_Data_Storage/luka/EEG_STUDY/";
 
 % Load table form excel file
 component_selection_path = "MATLAB/Component Selection.xlsx";
-component_selection = readtable(component_selection_path, 'Range', 'A:F');
-
-% Convert comma-separated string to numeric array
-component_selection.SelectedComponentsNum = cellfun(@(x) [str2num(char(x))], component_selection.SelectedComponents, 'UniformOutput', false);
-
-% Remove files from table that don't exist in data root folder
-deletable_files = [];
-for file_ = 1:size(component_selection, 1)
-    if ~exist(fullfile(DATA_ROOT, component_selection.Participant(file_), component_selection.Filename(file_)), 'file')
-        deletable_files(end + 1) = file_;
-    end
-end
-component_selection(deletable_files, :) = [];
-clear file_ deletable_files;
+component_selection = read_input_files(component_selection_path);
 
 % Settings
 electrodes = [1, 2, 6, 10, 16]; % Which electrodes to observe
@@ -47,7 +34,7 @@ for event_name_cell = event_names
         mkdir(SAVE_PATH)
     end
 
-    delta_times_per_tap = {};
+    
 
     % Arrays to keep information about files locations.
     set_files = {};
@@ -80,6 +67,8 @@ for event_name_cell = event_names
 
 
         % Extract tap distances
+        delta_times_per_tap = {};
+        
         tap_event_indices = find(strcmp({EEG1.event.code}, event_name));    
         tap_events = EEG1.event(tap_event_indices);
         tap_latencies = [tap_events.latency];
@@ -242,8 +231,6 @@ end
 
 
 
-
-
 %% LIMO Step 2
 
 for event_name_cell = event_names
@@ -366,7 +353,21 @@ function [mask, cluster_p, one_sample] = run_clustering(LIMO_paths, alpha, expec
     end
 end
 
+function component_selection = read_input_files(file_path)
+    component_selection = readtable(file_path, 'Range', 'A:F');
 
+    % Convert comma-separated string to numeric array
+    component_selection.SelectedComponentsNum = cellfun(@(x) [str2num(char(x))], component_selection.SelectedComponents, 'UniformOutput', false);
+
+    % Remove files from table that don't exist in data root folder
+    deletable_files = [];
+    for file_ = 1:size(component_selection, 1)
+        if ~exist(fullfile(DATA_ROOT, component_selection.Participant(file_), component_selection.Filename(file_)), 'file')
+            deletable_files(end + 1) = file_;
+        end
+    end
+    component_selection(deletable_files, :) = [];
+end
 
 
 
