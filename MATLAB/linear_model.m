@@ -27,6 +27,7 @@ electrodes = [1, 2, 6, 10, 16]; % Which electrodes to observe
 taps_to_observe = [-1, 1]; % Which surrounding taps to observe
 epoch_size = [-3, 0.5];
 FS_hat_max_window = [-400, 400]; % In samples
+event_names = {'FS_event', 'Tap'};
 
 do_resample = 0;
 new_sampling_rate = 1000; % Hz
@@ -34,9 +35,7 @@ new_sampling_rate = 1000; % Hz
 % ONLY FOR TESTING
 %component_selection = component_selection(1:2, :);
 
-%%
-event_names = {'FS_event', 'Tap'};
-
+%% Step 1
 for event_name_cell = event_names
     event_name = event_name_cell{1};
     starting_dir = pwd(); % Need to save starting dir, as some LIMO functions will cd into other directories.
@@ -240,130 +239,132 @@ for event_name_cell = event_names
     save(fullfile(pwd(), event_type_subdir, 'ALL_LIMO_INFO.mat'), 'LIMOs');
 
 end
+
+
+
+
+
 %% LIMO Step 2
 
-% Extract Betas from LIMOs struct
-n_betas = size(LIMOs(1).model(1).betas, 1);
-
-% Dimensions: electrodes * frames * betas * participants
-betas = zeros(64, sum(abs(epoch_size)) * 1000, n_betas, size(LIMOs, 2));
-
-for ppt = 1:size(LIMOs, 2)
-    current_ppt_limo = LIMOs(ppt);
+for event_name_cell = event_names
+    event_name = event_name_cell{1};
     
-    for electrode = 1:size(current_ppt_limo.model, 2)    
-        betas(electrode, :, :, ppt) = current_ppt_limo.model(electrode).betas';
-    end
+    %% Setup
+    % Go into the sub directory for the current event type
+    event_type_subdir = ['LIMO_output_', event_name];
+    cd(fullfile(starting_dir, event_type_subdir));
+    load('ALL_LIMO_INFO.mat');
+    load('save_locations.mat');
+    expected_chanlocs = load('~/Thesis/movement_prediction/MATLAB/expected_chanlocs.mat');
+    
+    
+    betas = extract_betas(LIMOs);
+
+    LIMO = make_LIMO_struct_step2(SAVE_PATH_ROOT, expected_chanlocs);
+    
+    LIMO_paths = run_ttests(betas);   
+    
+    load('H0/boot_table');
+    
+    [mask, cluster_p, one_sample] = run_clustering(LIMO_paths, alpha, expected_chanlocs);
+    save('clustering_output.mat', 'mask', 'cluster_p', 'one_sample');
+    
+    
+    
+    
+    %% Go back to base dir
+    cd(starting_dir);
+    
 end
+%% Plots
 
-size(betas)
-whos betas
-
-
-
-%% Plot betas for each electrode
-
-electrodes = 1:size(betas, 1);
+% Plot betas for each electrode    
 electrodes = [1, 2, 6, 10, 16];
+PlottingFunctions.plot_betas(betas, electrodes);
 
-for beta = 1:size(betas, 3)
-    figure;
-    sgtitle(sprintf('Beta %d', beta));
-    p = numSubplots(length(electrodes));
-    
-    for electrode_index = 1:length(electrodes)
-        subplot(p(1), p(2), electrode_index);        
-        plot(epoch_size(1) * 1000:epoch_size(2) * 1000 - 1, squeeze(betas(electrodes(electrode_index), :, beta, :)));
-        hold on;
-        
-        % Add mean line
-        plot(epoch_size(1) * 1000:epoch_size(2) * 1000 - 1, mean(squeeze(betas(electrodes(electrode_index), :, beta, :)), 2), 'LineWidth', 5, 'color', [0, 0, 0]);
-        
-        
-        title(string(electrodes(electrode_index)));
-        xline(0);
-        yline(0);        
-    end
-end
-
-%% Setup for t-test
-% Find Betas.mat files in ppt folder
-beta_file_locs = dir([char(SAVE_PATH), '**/Betas*.mat']);
-
-beta_file_locs = [{beta_file_locs(:).folder}; {beta_file_locs(:).name}]';
-
-expected_chanlocs = load('~/Thesis/movement_prediction/MATLAB/expected_chanlocs.mat');
-
-
-% Make a new LIMO.mat file
-LIMO = struct();
-LIMO.dir = pwd();
-LIMO.Analysis = 'Time';
-LIMO.Level = 2;
-
-LIMO.data.chanlocs = expected_chanlocs.expected_chanlocs;
-LIMO.data.neighbouring_matrix = expected_chanlocs.channeighbstructmat;
-LIMO.data.data = beta_file_locs{:, 2};
-LIMO.data.data_dir = beta_file_locs{:, 1};
-LIMO.data.sampling_rate = 1000;
-LIMO.design.bootstrap = 1000;
-LIMO.design.tfce = 0;
-LIMO.design.name = 'one sample t-test all electrodes';
-LIMO.design.electrode = [];
-LIMO.design.X = [];
-LIMO.design.method = 'Trimmed Mean';
-
-save('LIMO.mat', 'LIMO');
-
-
-%% T-test for each beta
-LIMO_paths(size(betas,3)) = string();
-
-for current_beta_index = 1:size(betas,3)
-    current_beta = squeeze(betas(:, :, current_beta_index, :));
-   
-    LIMO_paths(current_beta_index) = limo_random_robust(1, current_beta, current_beta_index, LIMO);
-end
-
-
-
-%% Clustering
-load('H0/boot_table');
-alpha = 0.05;
-min_n_channels = 2;
-n_boot = size(boot_table{1}, 2);
-
-% Initialize empty matrices
-mask = zeros(size(betas, 1), size(betas, 2), size(LIMO_paths, 2));
-cluster_p = zeros(size(betas, 1), size(betas, 2), size(LIMO_paths, 2));
-
-one_sample = zeros(size(betas, 1), size(betas, 2), 5, size(LIMO_paths, 2));
-
-for current_beta = 1:size(LIMO_paths, 2)
-    one_sample_tmp = load(fullfile(LIMO_paths{current_beta}, sprintf('one_sample_ttest_parameter_%d.mat', current_beta)));
-    one_sample(:, :, :, current_beta) = one_sample_tmp.one_sample;    
-    
-    load(fullfile(LIMO_paths{current_beta}, 'H0', sprintf('H0_one_sample_ttest_parameter_%d.mat', current_beta)));
-    
-    [mask(:, :, current_beta), cluster_p(:, :, current_beta)] = limo_cluster_correction( ...
-        squeeze(one_sample(:, :, 4, current_beta) .^ 2), ...
-        squeeze(one_sample(:, :, 5, current_beta)), ...
-        squeeze(H0_one_sample(:, :, 1, :) .^ 2), ...
-        squeeze(H0_one_sample(:, :, 2, :)), ...
-        expected_chanlocs.channeighbstructmat, ...
-        2, ...
-        alpha);
-end
-
-save('clustering_output.mat', 'mask', 'cluster_p', 'one_sample');
-
-%% Plot clusters
-
+% Plot clusters
 PlottingFunctions.plot_significant_clusters(mask, cluster_p);
 
 
-%%
+%% Local functions
 
+function betas = extract_betas(LIMOs)
+    n_betas = size(LIMOs(1).model(1).betas, 1);
+    
+    % Dimensions: electrodes * frames * betas * participants
+    
+    betas = zeros(64, sum(abs(epoch_size)) * 1000, n_betas, size(LIMOs, 2));
+    
+    for ppt = 1:size(LIMOs, 2)
+        current_ppt_limo = LIMOs(ppt);
+        
+        for electrode = 1:size(current_ppt_limo.model, 2)
+            betas(electrode, :, :, ppt) = current_ppt_limo.model(electrode).betas';
+        end
+    end
+end
+
+function LIMO = make_LIMO_struct_step2(data_root_folder, expected_chanlocs)
+    % Find beta files in save path
+    beta_file_locs = dir([char(data_root_folder), '**/Betas*.mat']);    
+    beta_file_locs = [{beta_file_locs(:).folder}; {beta_file_locs(:).name}]';
+
+    LIMO = struct();
+    LIMO.dir = pwd();
+    LIMO.Analysis = 'Time';
+    LIMO.Level = 2;
+    
+    LIMO.data.chanlocs = expected_chanlocs.expected_chanlocs;
+    LIMO.data.neighbouring_matrix = expected_chanlocs.channeighbstructmat;
+    LIMO.data.data = beta_file_locs{:, 2};
+    LIMO.data.data_dir = beta_file_locs{:, 1};
+    LIMO.data.sampling_rate = 1000;
+    LIMO.design.bootstrap = 1000;
+    LIMO.design.tfce = 0;
+    LIMO.design.name = 'one sample t-test all electrodes';
+    LIMO.design.electrode = [];
+    LIMO.design.X = [];
+    LIMO.design.method = 'Trimmed Mean';
+    
+    save('LIMO.mat', 'LIMO');
+end
+
+function LIMO_paths = run_ttests(betas)
+    LIMO_paths(size(betas,3)) = string();
+    
+    for current_beta_index = 1:size(betas,3)
+        current_beta = squeeze(betas(:, :, current_beta_index, :));
+        
+        LIMO_paths(current_beta_index) = limo_random_robust(1, current_beta, current_beta_index, LIMO);
+    end
+end
+
+function [mask, cluster_p, one_sample] = run_clustering(LIMO_paths, alpha, expected_chanlocs)
+    %min_n_channels = 2;
+    %n_boot = size(boot_table{1}, 2);
+    
+    % Initialize empty matrices
+    mask = zeros(size(betas, 1), size(betas, 2), size(LIMO_paths, 2));
+    cluster_p = zeros(size(betas, 1), size(betas, 2), size(LIMO_paths, 2));
+    
+    one_sample = zeros(size(betas, 1), size(betas, 2), 5, size(LIMO_paths, 2));
+    
+    for current_beta = 1:size(LIMO_paths, 2)
+        one_sample_tmp = load(fullfile(LIMO_paths{current_beta}, sprintf('one_sample_ttest_parameter_%d.mat', current_beta)), 'one_sample');
+        one_sample(:, :, :, current_beta) = one_sample_tmp.one_sample;
+        
+        load(fullfile(LIMO_paths{current_beta}, 'H0', sprintf('H0_one_sample_ttest_parameter_%d.mat', current_beta)), 'H0_one_sample');
+        
+        [mask(:, :, current_beta), cluster_p(:, :, current_beta)] = limo_cluster_correction( ...
+            squeeze(one_sample(:, :, 4, current_beta) .^ 2), ...
+            squeeze(one_sample(:, :, 5, current_beta)), ...
+            squeeze(H0_one_sample(:, :, 1, :) .^ 2), ...
+            squeeze(H0_one_sample(:, :, 2, :)), ...
+            expected_chanlocs.channeighbstructmat, ...
+            2, ...
+            alpha);
+    end
+end
 
 
 

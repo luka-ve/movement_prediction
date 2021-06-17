@@ -100,6 +100,7 @@ For a given tap, $\Delta t_{+1}$ may refer to the interval in milliseconds to th
 Equally, for a tap $\Delta t_{-1}$ referes to the interval in ms to the previous tap.
 These delta times are then added as fields to each tap that occurred in the `EEG.event` struct of a participant.
 From these events, the EEG data is then epoched around 'Tap' events, which were marked previously during preprocessing.
+Moreover, we also add a measure of "FS-ness" to each touch event. FS-ness is measured by taking the max value of $\hat{FS}$ in a window of 400 ms around 
 
 Next, since epoching adds lots of seemingly duplicate occurences of events, the continuous predictors are extracted from each event, along with the correct indices.
 *Note: This part also includes a handler which deals with edge cases in which multiple events happen to fall on the exact same sample latency.*
@@ -122,7 +123,7 @@ This struct contains a list of models for each participant.
 The file is also saved in the root folder of the project under `LIMOs.mat`.
 *Note: I will add a section in this readme that describes file dimensions and formats.*
 
-## Step 2.1
+## Step 2
 Step 2 of the LIMO pipeline is concerned with between participant analysis.
 In our case, we are interested in figuring out whether the parameters of each model are significantly affected by the temporal dynamics described by $\Delta t_{-1}$ and $\Delta t_{+1}$.
 To answer this question, we run a simple one-sample t-test on the model coefficients acquired in step 1.

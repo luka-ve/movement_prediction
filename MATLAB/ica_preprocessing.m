@@ -42,7 +42,7 @@ config.min_FS_tap_distance = 500; % In milliseconds
 
 %% ONLY FOR DEBUGGING %%
 %%%%%%%%%%%%%%%%%%%%%%%%
-files_to_analyze = files_to_analyze(1:3);
+files_to_analyze = files_to_analyze(1:5);
 
 
 %% Print out number of files
