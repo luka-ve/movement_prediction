@@ -1,4 +1,4 @@
-function plot_significant_clusters(mask, cluster_p)
+function plot_significant_clusters(mask, cluster_p, epoch_size)
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -16,7 +16,7 @@ function plot_significant_clusters(mask, cluster_p)
         title(string(current_beta));
 
         hold on;
-        xlim([1, size(mask, 2)]);
+        xlim(epoch_size * 1000);
         ylim([1, size(mask, 1)]);
 
         this_beta_cluster_ps = {};
@@ -26,7 +26,7 @@ function plot_significant_clusters(mask, cluster_p)
             [cluster_pos_x, cluster_pos_y] = find(cluster_indices');
 
             hold on;
-            scatter(cluster_pos_x, cluster_pos_y);
+            scatter(cluster_pos_x + (epoch_size(1) * 1000), cluster_pos_y);
 
             %title(string(current_cluster));
 
