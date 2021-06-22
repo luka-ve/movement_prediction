@@ -3,7 +3,7 @@
 % EEGLAB
 % https://github.com/codelableidenvelux/CodelabTapDataProcessing
 
-
+ 
 diary '/home/luka/Thesis/movement_prediction/MATLAB/Log/diary.txt';
 diary on;
 
@@ -36,13 +36,15 @@ for status_file = status_files
 end
 
 % Config parameters
-config.do_ica = logical(0);
+config.do_ica = logical(1);
 config.min_FS_tap_distance = 500; % In milliseconds
+config.EEG_hipass = 0.1;
+config.EEG_lopass = 30;
 
 
 %% ONLY FOR DEBUGGING %%
 %%%%%%%%%%%%%%%%%%%%%%%%
-files_to_analyze = files_to_analyze(1:5);
+%files_to_analyze = files_to_analyze(1);
 
 
 %% Print out number of files
@@ -112,18 +114,14 @@ for ppt = 1:length(files_to_analyze)
     
     tap_idx = tap_idx(:, 2);
     
-    
-    %% Add tap indices to list of events
-    tap_event = struct();
-    
-    % Ensure that all fields in the original .events struct are also
-    % present in new tap events
     if isempty(tap_idx)
         log_msg = 'Skipping participant: No tap indices found.';
         write_log_entry(log_msg, ppt_file);
         continue;
     end
     
+    %% Add tap indices to list of events
+    %tap_event = struct();
         
     for tap = 1:length(tap_idx)
         EEG.urevent(end + 1).latency = tap_idx(tap);
@@ -150,17 +148,16 @@ for ppt = 1:length(files_to_analyze)
     % Generate FS events
     FS_event_idx = get_FS_taps(FS_data, FS_sampling_rate, config.min_FS_tap_distance);
 
-    % Add FS events
-    FS_events = struct();
-
-    % Ensure that all fields in the original .events struct are also
-    % present in new tap events
-    if isempty(FS_events)
+    if isempty(FS_event_idx)
         log_msg = 'Skipping participant: No force sensor events detected.';
         write_log_entry(log_msg, ppt_file);
         continue;
     end
     
+    
+    % Add FS events
+    %FS_events = struct();
+
     for FS_event = 1:length(FS_event_idx)
         EEG.urevent(end + 1).latency = FS_event_idx(FS_event);
         EEG.urevent(end).duration = 0.1;
@@ -190,7 +187,7 @@ for ppt = 1:length(files_to_analyze)
     
     %% Clean EEG
     try
-        EEG = gettechnicallycleanEEG(EEG, 0.1, 30);
+        EEG = gettechnicallycleanEEG(EEG, config.EEG_hipass, config.EEG_lopass);
     catch ME
         write_log_entry(ME.message, ppt_file);
         continue;
@@ -213,7 +210,6 @@ for ppt = 1:length(files_to_analyze)
     % time points independently. Therefore, the discontinuity of
     % concatenated EEG data is not an issue here.
     if config.do_ica
-        write_log_entry('Skipping ICA: do_ica == false');
         try
             EEG_taps_only = pop_runica(EEG_taps_only, 'icatype', 'runica');
         catch ME

@@ -36,9 +36,26 @@ end
 % remove the padding
 FS_data = FS_data(2:(end-1));
 
-%% Remove peaks that are shorter than 5ms. Those are likely noise.
-[pulse_width, initcros, ~] = pulsewidth(FS_data, sampling_rate);
-indices = round(initcros(pulse_width > (min_tap_distance / sampling_rate)) * sampling_rate);
+% Make signal square
+FS_data(FS_data > -0.5) = 1;
+
+% Remove peaks that are shorter than 5ms. Those are likely noise.
+min_tap_length = 30;
+
+[pulse_width, initcross, finalcross] = pulsewidth(FS_data, sampling_rate);
+
+
+indices_end = round(finalcross(pulse_width > (min_tap_length / sampling_rate)) * sampling_rate);
+indices = round(initcross(pulse_width > (min_tap_length / sampling_rate)) * sampling_rate);
+
+% Remove FS taps with too short interval between end of the touch and
+% beginning of next touch.
+good_taps = true(length(indices), 1);
+for ii = 2:length(indices)
+    good_taps(ii) = abs(indices(ii) - indices_end(ii - 1)) > min_tap_distance;
+end
+
+indices = indices(good_taps);
 
 end
 
