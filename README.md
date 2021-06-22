@@ -5,8 +5,9 @@ This readme outlines the data handling processes of data reading and validation,
 
 ## Software Dependencies
 
-- [EEGLAB 2021.0 website](https://eeglab.org/) or on [GitHub](https://github.com/sccn/eeglab)
-- [LIMO EEG](https://github.com/LIMO-EEG-Toolbox/limo_tools)
+- [EEGLAB 2021.0 website](https://eeglab.org/). [GitHub](https://github.com/sccn/eeglab)
+- [LIMO EEG](https://github.com/LIMO-EEG-Toolbox/limo_tools) : [Paper](https://www.hindawi.com/journals/cin/2011/831409/)
+- [SASICA](https://github.com/dnacombo/SASICA) : [Paper](https://pubmed.ncbi.nlm.nih.gov/25791012/)
 - [Kock, Ruchella; Master thesis](https://github.com/rushkock/master_thesis_IS-DS/)
 - [Neubee](https://github.com/codelableidenvelux/neubee/)
 - [Codelab Tap Data Processing](https://github.com/codelableidenvelux/CodelabTapDataProcessing)
@@ -71,18 +72,17 @@ The process is repeated for each participant file that is found at the beginning
 
 # Selection of independent components 
 
-Following ICA, we decided to manually select independent components that may resemble pre-motor potentials.
+Following ICA, we decided to semi-manually select independent components that may resemble pre-motor potentials.
 Pre-motor potentials in this case refer to **any** signal that reliably precedes a motor action.
 I do not make the assumption that pre-motor signals are necessarily signals that directly prepare for motor action.
 
-For each individual participant, we selected independent components based on the following set of rules which were validated visually using averaged component ERP plots and topographical plots.
+For each individual participant, we selected independent components based on the following set of rules which were validated visually using averaged component ERP plots, topographical plots, frequency distribution graphs, and component activity over trials. The component selection was semi-manual, aided by the [SASICA](https://github.com/dnacombo/SASICA) EEGLAB plugin. In detail, we utilized SASICA's automatic channel rejection methods using autocorrelation, focal components, focal trial activity, and EOG correlation. Signal to noise ratio was not considered, as any signal we may be looking for may exhibit low SNR, as inter-tap intervals varied vastly, possibly resulting in convolved, overlapping signals.
+
 In order for a component to be selected, it must fulfill both of the following requirements:
 
-- Exhibit some sense of pre-tap deviation
-- Not be topologically dominated by ocular electrodes
+- Be identified as a brain component (i.e., not an eye, muscle, heart, or other artifact or noise), following the practices laid down by [ICLabel](https://www.sciencedirect.com/science/article/pii/S1053811919304185)
+- Exhibit pre-motor/pre-tap potential
 
-Since eye movements may be synchronised to some extent with motor actions, ocular-dominated components were ignored in the component selection, even when they exhibited strong pre-tap deviation.
-(Add some more detail here)
 
 For each participant, we then compiled a list of selected components which can be found in [Component Selection.xlsx](MATLAB/Component%20Selection.xlsx)
 
