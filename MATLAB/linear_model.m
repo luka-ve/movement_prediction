@@ -7,7 +7,7 @@ SAVE_PATH_ROOT = "/media/Storage/User_Specific_Data_Storage/luka/EEG_STUDY/";
 
 % Load table form excel file
 component_selection_path = "MATLAB/Component Selection.xlsx";
-component_selection = read_input_files(component_selection_path, DATA_ROOT);
+component_selection = read_input_files(component_selection_path, DATA_ROOT, "Both");
 
 % Settings
 taps_to_observe = [-1, 1]; % Which surrounding taps to observe
@@ -23,7 +23,7 @@ starting_dir = '/home/luka/Thesis/movement_prediction';
 %component_selection = component_selection(1:8, :);
 
 %% Step 1
-
+tic();
 
 for event_name_cell = event_names
     event_name = event_name_cell{1};    
@@ -38,6 +38,7 @@ for event_name_cell = event_names
     
 
     % Arrays to keep information about files locations.
+    inter_tap_intervals = {};
     set_files = {};
     cont_files = {};
     LIMO_files = {};
@@ -73,7 +74,7 @@ for event_name_cell = event_names
         tap_event_indices = find(strcmp({EEG1.event.code}, event_name));    
         tap_events = EEG1.event(tap_event_indices);
         tap_latencies = [tap_events.latency];
-        delta_times_per_tap{end + 1} = get_tap_deltas(tap_latencies, taps_to_observe, EEG1.srate);
+        [delta_times_per_tap{end + 1}, inter_tap_intervals{end + 1}] = get_tap_deltas(tap_latencies, taps_to_observe, EEG1.srate);
         EEG1.etc.delta_times_per_tap = delta_times_per_tap{end};
         EEG1.etc.delta_K_set = taps_to_observe;
 
@@ -213,6 +214,7 @@ for event_name_cell = event_names
         end
 
         LIMO.model = [LIMO.model{:}];
+        inter_tap_intervals{end + 1} = delta_times_per_tap;
 
         LIMOs{ppt_no} = LIMO;
 
@@ -239,6 +241,8 @@ for event_name_cell = event_names
 
     LIMOs = [LIMOs{:}];
     save(fullfile(pwd(), event_type_subdir, 'ALL_LIMO_INFO.mat'), 'LIMOs');
+    save(fullfile(pwd(), event_type_subdir, 'inter_tap_intervals.mat'), 'inter_tap_intervals');
+    
     disp(sprintf("Done for event type %s", event_name));
 end
 
@@ -277,23 +281,23 @@ for event_name_cell = event_names
     
 end
 
+toc();
 
 %% Plots
 % Setup
 load('LIMO_output_Tap/clustering_output.mat', 'mask', 'cluster_p', 'one_sample');
 load('LIMO_output_Tap/ALL_LIMO_INFO.mat', 'LIMOs');
-
+%%
 epoch_size = [-3, 0.5]; % In seconds
 betas = extract_betas(LIMOs);
 
 % Plot betas for each electrode
+%%
 electrodes = [1, 2, 6, 10, 16];
 PlottingFunctions.plot_betas(betas, electrodes, epoch_size, true);
-
+%%
 % Plot clusters
 PlottingFunctions.plot_significant_clusters(mask, cluster_p, epoch_size);
-
-%
 
 
 
@@ -378,20 +382,36 @@ function [mask, cluster_p, one_sample] = run_clustering(LIMO_paths, significance
     end
 end
 
-function component_selection = read_input_files(component_selection_path, data_path)
-    component_selection = readtable(component_selection_path, 'Range', 'A:F');
+function component_selection = read_input_files(component_selection_path, data_path, which_components)
+% Input:
+% which_components: String. Which selected components to keep. Possible options: "Prep", "Brain", or "Both"
+    component_selection = readtable(component_selection_path);
 
     % Convert comma-separated string to numeric array
-    component_selection.SelectedComponentsNum = cellfun(@(x) [str2num(char(x))], component_selection.SelectedComponents, 'UniformOutput', false);
-
-    % Remove files from table that don't exist in data root folder
-    deletable_files = [];
+    if strcmp(which_components, "Prep")
+        component_selection.SelectedComponentsNum = cellfun(@(x) [str2num(char(x))], component_selection.PreparationOrientedComponents, 'UniformOutput', false);
+    elseif strcmp(which_components, "Brain")
+        component_selection.SelectedComponentsNum = cellfun(@(x) [str2num(char(x))], component_selection.BrainComponents, 'UniformOutput', false);
+    elseif strcmp(which_components, "Both")
+        component_selection.SelectedComponentsNum = cellfun(@(x) [str2num(char(x))], component_selection.PreparationOrientedComponents, 'UniformOutput', false);
+        brain_components = cellfun(@(x) [str2num(char(x))], component_selection.BrainComponents, 'UniformOutput', false);
+        
+        for comp = 1:size(component_selection, 1)
+            component_selection.SelectedComponentsNum{comp} = unique(sort([component_selection.SelectedComponentsNum{comp}, brain_components{comp}]));
+        end
+        
+        %component_selection.SelectedComponentsNum = horzcat(component_selection.SelectedComponentsNum{:}, brain_components{:});
+    end
+    % Remove files from table that don't exist in data root folder or
+    % entries without good components
+    removable_entries = [];
     for file_ = 1:size(component_selection, 1)
-        if ~exist(fullfile(data_path, component_selection.Participant(file_), component_selection.Filename(file_)), 'file')
-            deletable_files(end + 1) = file_;
+        if ~exist(fullfile(data_path, component_selection.Participant(file_), component_selection.Filename(file_)), 'file') | ...
+            component_selection.HasGoodComponents(file_) == 0
+            removable_entries(end + 1) = file_;
         end
     end
-    component_selection(deletable_files, :) = [];
+    component_selection(removable_entries, :) = [];
 end
 
 

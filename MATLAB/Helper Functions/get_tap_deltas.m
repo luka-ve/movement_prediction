@@ -1,4 +1,4 @@
-function [tap_deltas] = get_tap_deltas(tap_times, K, srate)
+function [tap_deltas, inter_tap_intervals] = get_tap_deltas(tap_times, K, srate)
 %GET_TAP_DELTAS Extract the distances between taps.
 %   This function extracts delta times between taps.
 % INPUT:
@@ -53,6 +53,8 @@ for tap = 1:size(tap_delta_size, 1)
 end
 
 tap_deltas = tap_deltas_with_idx;
+
+inter_tap_intervals = diff(tap_times);
 
 end
 
