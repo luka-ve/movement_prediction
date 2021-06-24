@@ -100,6 +100,8 @@ for event_name_cell = event_names
 
         % Generate epochs
         EEG1 = pop_epoch(EEG1, {event_name}, epoch_size);
+        
+        EEG1 = pop_rmbase(EEG1, [-3000, -2500]);
 
         % Reject epochs based on thresholding
         electrodes_to_reject = [1:62];
@@ -214,9 +216,12 @@ for event_name_cell = event_names
         end
 
         LIMO.model = [LIMO.model{:}];
+        LIMO.File = ppt_info.Filename;
         inter_tap_intervals{end + 1} = delta_times_per_tap;
-
+        
+        
         LIMOs{ppt_no} = LIMO;
+        
 
         LIMO_savepath = fullfile(SAVE_PATH, ppt_info.Participant, 'LIMO.mat');
         save(LIMO_savepath, 'LIMO');
