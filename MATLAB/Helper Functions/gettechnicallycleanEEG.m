@@ -46,4 +46,5 @@ INEEG = pop_subcomp(INEEG,Rej_Comp,0);
 
 % Re-reference to average channel 
 
-OUTEEG = pop_reref (INEEG, [1:62], 'keepref', 'on'); OUTEEG = eeg_checkset(OUTEEG); % use this re-ref to avg reference.
+OUTEEG = pop_reref (INEEG, [1:(size(INEEG.data, 1) - 2)], 'keepref', 'on');
+OUTEEG = eeg_checkset(OUTEEG); % use this re-ref to avg reference.
