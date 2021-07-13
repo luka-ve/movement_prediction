@@ -290,40 +290,11 @@ toc();
 
 %% Plots
 % Setup
-load('LIMO_output_Tap/clustering_output.mat', 'mask', 'cluster_p', 'one_sample');
-load('LIMO_output_Tap/ALL_LIMO_INFO.mat', 'LIMOs');
-%%
-epoch_size = [-3, 0.5]; % In seconds
-betas = extract_betas(LIMOs);
 
-% Plot betas for each electrode
-%%
-electrodes = [1, 2, 6, 10, 16];
-PlottingFunctions.plot_betas(betas, electrodes, epoch_size, true);
-%%
-% Plot clusters
-PlottingFunctions.plot_significant_clusters(mask, cluster_p, epoch_size);
 
 
 
 %% Local functions
-
-function betas = extract_betas(LIMOs)
-    n_betas = size(LIMOs(1).model(1).betas, 1);
-    epoch_size = size(LIMOs(1).model(1).betas, 2);
-    
-    % Dimensions: electrodes * frames * betas * participants
-    
-    betas = zeros(64, epoch_size, n_betas, size(LIMOs, 2));
-    
-    for ppt = 1:size(LIMOs, 2)
-        current_ppt_limo = LIMOs(ppt);
-        
-        for electrode = 1:size(current_ppt_limo.model, 2)
-            betas(electrode, :, :, ppt) = current_ppt_limo.model(electrode).betas';
-        end
-    end
-end
 
 function LIMO = make_LIMO_struct_step2(data_root_folder, expected_chanlocs)
     % Find beta files in save path
