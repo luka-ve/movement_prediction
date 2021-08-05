@@ -4,19 +4,19 @@ function jid = iti2JID(itis, varargin)
 %    jid = taps2JID(iti, ...);
 %    Positional parameters:
 % 
-%      itis             An array (Nx1) of inter-tap intervals  in ms. 
+%      itis             An array (Nx1) of inter-tap intervals  in ms.
 %    
-%    Optional input parameters:  
+%    Optional input parameters:
 % 
-%      'Bins'           Number of bins (per side) in the JID. Basically the 
-%                       length of the side of the JID matrix. 
-%      'MinH'           The minimum delta(t) value to consider in the JID 
-%                       space expressed in log10(ms) space. Default 1.5 ~ 30 ms 
+%      'Bins'           Number of bins (per side) in the JID. Basically the
+%                       length of the side of the JID matrix.
+%      'MinH'           The minimum delta(t) value to consider in the JID
+%                       space expressed in log10(ms) space. Default 1.5 ~ 30 ms
 %                       10 ^ 1.5 = 31.6.
-%      'MaxH'           The maximum delta(t) value to consider in the JID 
-%                       space expressed in log10 space. Default 5 ~  100 s 
+%      'MaxH'           The maximum delta(t) value to consider in the JID
+%                       space expressed in log10 space. Default 5 ~  100 s
 %                       10 ^ 5 = 100000.
-%      'Bandwidth'      Of the Kernel density estimation. Default is 0.1. 
+%      'Bandwidth'      Of the Kernel density estimation. Default is 0.1.
 %
 %   Returns: JID a matrix of size Bins-by-Bins. 
 %

@@ -12,6 +12,8 @@ This readme outlines the data handling processes of data reading and validation,
 - [Neubee](https://github.com/codelableidenvelux/neubee/)
 - [Codelab Tap Data Processing](https://github.com/codelableidenvelux/CodelabTapDataProcessing)
 - [numSubplots](https://www.mathworks.com/matlabcentral/fileexchange/26310-numsubplots-neatly-arrange-subplots) for automatic plot arrangement.
+- [shade](https://www.mathworks.com/matlabcentral/fileexchange/69652-filled-area-plot)
+- [table2latex](https://www.mathworks.com/matlabcentral/fileexchange/69063-matlab-table-to-latex-conversor)
 
 # Preprocessing ([inspect_ica_epochs.m](MATLAB/inspect_ICA_epochs.m))
 
